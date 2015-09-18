@@ -3,11 +3,11 @@ You can create the snippets of the Python code, which will be executed inside th
   you access to internal Zabbix core functions and serious performance gain.
 
 
-== 0.4 ==
+# 0.4 
 
 Initial release of the ZLM-python module with Cython.
 
-=== Features ===
+## Features 
 
 * Single module acting as both Zabbix Loadable Module and Python modue.
 * Access to Zabbix core logging and process creation functions.
@@ -16,7 +16,7 @@ Initial release of the ZLM-python module with Cython.
 * Modules caching
 * RRD in-memory internal storage based on namespace.
 
-=== Requirements ===
+##Requirements 
 
 * Cython verson 0.23.1 or newer
 * Python2 version 2.6 or newer, with multiprocessing module
