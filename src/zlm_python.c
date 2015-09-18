@@ -188,12 +188,16 @@ int	zbx_module_init() {
    
     /* Set-up Python environment */
     Py_SetProgramName("zlm_python");
-    Py_InitializeEx(0);
     if (Py_IsInitialized() == 0) {
-        /* Python initialization had failed */
-        return ZBX_MODULE_FAIL;
+        /*  Initialize only if not initialized before. This will allow us
+            to use multiple Python-based modules inside Zabbix */
+        Py_InitializeEx(0);
+        if (Py_IsInitialized() == 0) {
+            /* Python initialization had failed */
+            return ZBX_MODULE_FAIL;
+        }
+        PySys_SetPath(modpath);
     }
-    PySys_SetPath(modpath);
 
     zabbix_log(LOG_LEVEL_WARNING, "Executing ZBX_startup");
     initzlm_python();
