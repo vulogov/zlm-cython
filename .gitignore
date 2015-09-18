@@ -20,3 +20,5 @@ src/zlm_python_pyx.h
 src/zlm_python_pyx.c
 
 src/python.cfg
+
+.idea/dictionaries/gandalf.xml
