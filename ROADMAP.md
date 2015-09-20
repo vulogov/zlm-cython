@@ -2,6 +2,11 @@ ZLM-python is a Zabbix Loadable Module which embedding Python interpreter in Zab
 You can create the snippets of the Python code, which will be executed inside the Zabbix execution context, giving 
   you access to internal Zabbix core functions and serious performance gain.
 
+# 0.5
+
+## Features
+
+## Support of the Pyro
 
 # 0.4 
 
