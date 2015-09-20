@@ -28,6 +28,14 @@ else
     echo "Will compile against Zabbix from $ZBX_DIR"
 fi
 
+echo "Checking if Sorce tree was configured"
+
+if [ -f $ZBX_DIR/include/config.h ]; then
+    echo "Zabbix source tree already configured" ;
+else
+    echo  "Configuring Zabbix "; (cd $ZBX_DIR; ./configure --quiet --enable-agent; cd -);
+fi
+
 echo -n "Building python.cfg "
 echo -n "PYTHONPATH=" > python.cfg
 python -c "import sys; print ':'.join(sys.path)" >> python.cfg
