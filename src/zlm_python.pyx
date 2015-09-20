@@ -227,6 +227,79 @@ class ZLM_INI:
                 ret[s.lower()][i.lower()] = v
                 log_warning("ZLM-python(Config): %s[%s]=%s"%(s,i,v))
         return ret
+
+##
+## Module handling functions
+##
+
+##
+## List of the modules in specific location
+## Parameter:
+##      name        - path to the directory
+## Returns:
+##      list of modules in the specific location
+##
+
+def listOfModules(path):
+    import os
+    import posixpath
+    ret = []
+    for i in os.listdir(path):
+        if posixpath.isdir("%s/%s"%(path,i)):
+            if i not in ret and i not in ['lib', 'experimental']:
+                ret.append(i)
+            continue
+        if posixpath.isfile("%s/%s"%(path, i)):
+            m = i.split(".")
+            modname = m[0]
+            if modname not in ret and modname not in ["ZBX_startup", "ZBX_finish", "ZBX_call"]: ret.append(modname)
+    return ret
+
+##
+## This function is getting the reference on the module
+## Parameters:
+##      name        - name of the module
+##      method      - method in the module
+## Returns:
+##      module or None
+##
+
+def resolveModule(name, method=None):
+    import sys
+    import imp
+    import posixpath
+    import traceback
+
+
+    if sys.modules.has_key(name):
+        log_warning("ZLM-python(Call): picking up module %s from the cache"%name)
+        return (1, sys.modules[name], None)
+    try:
+        fp, pathname, description = imp.find_module(name)
+        if posixpath.dirname(pathname).split("/")[-1] != "pymodules":
+            ## If discovered module isn't in pymodules, we don't want to call it
+            log_warning("ZLM-python(Call): module %s is not the located in pymodules"%name)
+            return None
+    except:
+            log_warning("ZLM-python(Call): Module %s do not exists"%name)
+            return (0,"ZLM-python: Module %s do not exists"%name,traceback.format_exc())
+    try:
+        mod = imp.load_module(name, fp, pathname, description)
+    except:
+        log_warning("ZLM-python(Call): Module %s can not be loaded"%name)
+        _tbstr = traceback.format_exc()
+        return (0,"ZLM-python: Module %s can not be loaded: %s"%(name,_tbstr), _tbstr)
+    finally:
+        fp.close()
+    if method:
+        log_warning("ZLM-python(Call): Module %s->%s has been loaded from %s"%(name, method, pathname))
+    else:
+        log_warning("ZLM-python(Call): Module %s has been loaded from %s"%(name, pathname))
+    return (1, mod, None)
+
+
+
+
 ##
 ## Callbacks for the Zabbix loadable module interface
 ##
@@ -250,7 +323,11 @@ cdef public object ZBX_startup (char * cfg_path):
     config = cfg.Config()
     ret = {"m":manager, "ns":manager.Namespace(), "ns_lock":manager.Lock()}
     ret["ns"].config = config
+    ret["ns"].cfg_path = cfg_path
+    for m in listOfModules("%s/pymodules"%cfg_path):
+        resolveModule(m)
     return ret
+
 ##
 ## This function is executed during py[...] call
 ## Parameters:
@@ -285,27 +362,9 @@ cdef public object ZBX_call (object ctx, object params):
         c_params = tuple(p_cmd[2:])
     except:
         c_params = ()
-    if sys.modules.has_key(name):
-        mod = sys.modules[name]
-        log_warning("ZLM-python(Call): picking up module %s from the cache"%name)
-    else:
-        try:
-            fp, pathname, description = imp.find_module(name)
-            if posixpath.dirname(pathname).split("/")[-1] != "pymodules":
-                ## If discovered module isn't in pymodules, we don't want to call it
-                raise ImportError, name
-        except:
-            log_warning("ZLM-python(Call): Module %s do not exists"%name)
-            return (0,"ZLM-python: Module %s do not exists"%name,traceback.format_exc())
-        try:
-            mod = imp.load_module(name, fp, pathname, description)
-        except:
-            log_warning("ZLM-python(Call): Module %s can not be loaded"%name)
-            _tbstr = traceback.format_exc()
-            return (0,"ZLM-python: Module %s can not be loaded: %s"%(name,_tbstr), _tbstr)
-        finally:
-            fp.close()
-        log_warning("ZLM-python(Call): Module %s->%s has been loaded from %s"%(name, method, pathname))
+    ret, mod, _tb = resolveModule(name, method)
+    if ret == 0:
+        return (ret, mod, _tb)
     try:
         ret = apply(getattr(mod, method), f_params+c_params)
     except:
