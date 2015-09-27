@@ -11,3 +11,6 @@ zlm_python.o: zlm_python.c
 
 zlm_python.so: zlm_python_pyx.o zlm_python.o
 	gcc -shared -o zlm_python.so zlm_python_pyx.o zlm_python.o  $(PY_LIB)
+
+clean:
+	rm -f *.o *.so zlm_python_pyx.c

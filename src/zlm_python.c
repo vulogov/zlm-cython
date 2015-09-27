@@ -170,11 +170,11 @@ int	zbx_module_init() {
 	        return ZBX_MODULE_FAIL;
         }
         modpath=malloc(strlen(CONFIG_LOAD_MODULE_PATH)+4096);
-        zbx_snprintf(modpath, 4096, "%s/pymodules:%s/pymodules/lib:%s", CONFIG_LOAD_MODULE_PATH, CONFIG_LOAD_MODULE_PATH,python_path);
+        zbx_snprintf(modpath, 4096, "%s/pymodules:%s/pymodules/lib:%s/pydaemons:%s", CONFIG_LOAD_MODULE_PATH, CONFIG_LOAD_MODULE_PATH, CONFIG_LOAD_MODULE_PATH,python_path);
         free(python_path);
     } else  {
         modpath=malloc(strlen(CONFIG_LOAD_MODULE_PATH)+strlen(pythonpath)+4096);
-        zbx_snprintf(modpath, 4096, "%s/pymodules:%s/pymodules/lib:%s", CONFIG_LOAD_MODULE_PATH, CONFIG_LOAD_MODULE_PATH, pythonpath);
+        zbx_snprintf(modpath, 4096, "%s/pymodules:%s/pymodules/lib:%s/pydaemons:%s", CONFIG_LOAD_MODULE_PATH, CONFIG_LOAD_MODULE_PATH, CONFIG_LOAD_MODULE_PATH, pythonpath);
     }
 
 

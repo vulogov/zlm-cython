@@ -183,24 +183,50 @@ class ZLM_RRD:
 ##
 
 class ZLM_Metric_Collector(ZBX_Process):
-    _name = "generic_collector"
+    _collector = "generic_collector"
     def collect(self):
         pass
     def run(self):
         import time
         self.ns = self._kwargs["ns"]
         try:
-            self.wait = float(self.ns.config[self._name]["wait"])
+            self.wait = float(self.ns.config[self._collector]["wait"])
         except:
+            log_warning("ZLM-python(Config) Can not read wait time from %s->wait. Set default 1.0"%self._collector)
             self.wait = 1.0
         try:
             self._title = self.ns.config[self._name]["collector_name"]
         except:
             self._title = "Default collector"
-        stamp = time.time()
         while True:
+            stamp = time.time()
             self.collect()
+            delta = time.time() - stamp
+            tm = time.localtime()
+            ZBX_proc_settitle("(%s) Last time running %d:%d:%d %f sec"%(self.description, tm.tm_hour, tm.tm_min, tm.tm_sec, delta))
             time.sleep(self.wait)
+
+##
+## def startDaemon(mod)
+##
+
+def startDaemon(ns, mod):
+    import traceback
+
+    try:
+        daemon_class = getattr(mod, "Daemon")
+    except:
+        log_warning("ZLM-python(Daemon) There are no \"Daemon\" class in %s"%mod.__name__)
+        return False
+    try:
+        desc = getattr(daemon_class, "description")
+    except:
+        desc = "Daemon %s"%daemon_class.__name__
+    d_obj = daemon_class(None, None, None, (), {"ns":ns})
+    log_warning("ZLM-python(Daemon): Start daemon %s"%desc)
+    d_obj.start()
+    return True
+
 ##
 ## ZLM-python: reading config file and returns a dictionary
 ##
@@ -245,6 +271,9 @@ def listOfModules(path):
     import posixpath
     ret = []
     for i in os.listdir(path):
+        i = i.strip()
+        if len(i) == 0:
+            continue
         if posixpath.isdir("%s/%s"%(path,i)):
             if i not in ret and i not in ['lib', 'experimental']:
                 ret.append(i)
@@ -252,7 +281,7 @@ def listOfModules(path):
         if posixpath.isfile("%s/%s"%(path, i)):
             m = i.split(".")
             modname = m[0]
-            if modname not in ret and modname not in ["ZBX_startup", "ZBX_finish", "ZBX_call"]: ret.append(modname)
+            if modname not in ret and len(modname) != 0 and modname not in ["ZBX_startup", "ZBX_finish", "ZBX_call", "README"]: ret.append(modname)
     return ret
 
 ##
@@ -264,7 +293,7 @@ def listOfModules(path):
 ##      module or None
 ##
 
-def resolveModule(name, method=None):
+def resolveModule(name, method=None, suffix="pymodules"):
     import sys
     import imp
     import posixpath
@@ -272,29 +301,32 @@ def resolveModule(name, method=None):
 
 
     if sys.modules.has_key(name):
-        log_warning("ZLM-python(Call): picking up module %s from the cache"%name)
+        log_warning("ZLM-python(Module): picking up module %s from the cache"%name)
         return (1, sys.modules[name], None)
     try:
         fp, pathname, description = imp.find_module(name)
-        if posixpath.dirname(pathname).split("/")[-1] != "pymodules":
+        if posixpath.dirname(pathname).split("/")[-1] != suffix:
             ## If discovered module isn't in pymodules, we don't want to call it
-            log_warning("ZLM-python(Call): module %s is not the located in pymodules"%name)
-            return None
+            log_warning("ZLM-python(Module): module %s is not the located in %s"%(name,suffix))
+            return (0, "ZLM-python: module %s is not the located in %s"%(name,suffix), None)
     except:
-            log_warning("ZLM-python(Call): Module %s do not exists"%name)
-            return (0,"ZLM-python: Module %s do not exists"%name,traceback.format_exc())
+            f = open("/tmp/zlm.tb", "a")
+            f.write(traceback.format_exc())
+            f.close()
+            log_warning("ZLM-python(Module): Module '%s' do not exists"%name)
+            return (0,"ZLM-python: Module '%s' do not exists"%name,traceback.format_exc())
     try:
         mod = imp.load_module(name, fp, pathname, description)
     except:
-        log_warning("ZLM-python(Call): Module %s can not be loaded"%name)
+        log_warning("ZLM-python(Module): Module %s can not be loaded"%name)
         _tbstr = traceback.format_exc()
         return (0,"ZLM-python: Module %s can not be loaded: %s"%(name,_tbstr), _tbstr)
     finally:
         fp.close()
     if method:
-        log_warning("ZLM-python(Call): Module %s->%s has been loaded from %s"%(name, method, pathname))
+        log_warning("ZLM-python(Module): Module %s->%s has been loaded from %s"%(name, method, pathname))
     else:
-        log_warning("ZLM-python(Call): Module %s has been loaded from %s"%(name, pathname))
+        log_warning("ZLM-python(Module): Module %s has been loaded from %s"%(name, pathname))
     return (1, mod, None)
 
 
@@ -324,8 +356,24 @@ cdef public object ZBX_startup (char * cfg_path):
     ret = {"m":manager, "ns":manager.Namespace(), "ns_lock":manager.Lock()}
     ret["ns"].config = config
     ret["ns"].cfg_path = cfg_path
+    log_warning("ZLM-python(Startup) PYTHONPATH=%s"%":".join(sys.path))
+    ##
+    ## Pre-load modules from pymodules
+    ##
     for m in listOfModules("%s/pymodules"%cfg_path):
         resolveModule(m)
+    ##
+    ## Start zlm-cython daemon threads
+    ##
+    for m in listOfModules("%s/pydaemons"%cfg_path):
+        log_warning("ZLM-python(Daemon): Module %s detected"%m)
+        ret_code, mod, tb = resolveModule(m, None, "pydaemons")
+        if ret_code == 1:
+            if not startDaemon(ret["ns"], mod):
+                log_warning("ZLM-python(Daemon): Daemon %s had failed"%m)
+        else:
+            log_warning("ZLM-python(Daemon): Can not locate daemon module %s in %s/pydaemons"%(m, cfg_path))
+            log_warning(mod)
     return ret
 
 ##
