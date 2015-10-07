@@ -16,7 +16,7 @@ def calcSeconds(secs):
     else:
         m = None
     if m != None:
-        return float(secs[:-1])
+        return float(secs[:-1])*m
     return float(secs)
 
 def calcNSamples(data):
@@ -41,16 +41,15 @@ def calcInterval(interval, t_shift=None, interval_range=0):
     else:
         shift_secs = 0.0
     h_stamp = time.time()-shift_secs
-    l_stamp = time.time()-interval_range-shift_secs
     q = interval[-1].lower()
     if q in ["m", "h", "d", "w"] and interval[0] != "#":
-        interval = calcSeconds(interval)
-    delta, limit = calcNSamples(interval)
-    if delta != 0:
-        l_stamp -= delta
+        delta = calcSeconds(interval)
+        limit = 1
+    else:
+        delta, limit = calcNSamples(interval)
     if interval_range == 0 and delta == 0:
         interval_range = 86400
-    l_stamp = time.time()-interval_range-shift_secs
+    l_stamp = time.time()-delta-interval_range-shift_secs
     return {"h_stamp":h_stamp, "l_stamp":l_stamp, "limit": limit, "delta":delta}
 
 def printInterval(interval, t_shift=None, interval_range=0):

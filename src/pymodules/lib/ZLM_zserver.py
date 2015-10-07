@@ -31,7 +31,26 @@ class Federation_Config_File:
     def PASSWORD(self):
         return self["password"]
 
-class Federation_Server:
+class DataAggregators:
+    def _f(self, res, fun):
+        c = []
+        for i in res.values():
+            c.append(float(i))
+        return fun(c)
+    def MAX(self, res):
+        return self._f(res, max)
+    def MIN(self, res):
+        return self._f(res, min)
+    def SUM(self, res):
+        return self._f(res, sum)
+    def AVG(self, res):
+        c = []
+        for i in res.values():
+            c.append(float(i))
+        return (sum(c)/len(c))
+
+
+class Federation_Server(DataAggregators):
     def __init__(self, name, **kw):
         if not kw.has_key("cfg_path"):
             kw["cfg_path"] = "/usr/local/etc"
@@ -49,8 +68,7 @@ class Federation_Server:
         except:
             self.z.timeout = 5.0
         self.z.login(self.cfg.USERNAME(),self.cfg.PASSWORD())
-    def history(self, item, interval, t_shift=None):
-        from ZLM_Interval import calcInterval
+    def __getitem__(self, item):
         try:
             ix = item.index(":")
         except KeyboardInterrupt:
@@ -68,15 +86,43 @@ class Federation_Server:
             iteminfo = self.z.item.get(hostids=hostid, search={"name":_item})[0]
         except:
             return None
+        return iteminfo
+    def _execFunction(self, h_res, fun):
+        import time
+        if not fun:
+            return h_res
+        if type(fun) == type(""):
+            _fun = getattr(self, fun)
+            _par = (h_res,)
+        else:
+            _fun = fun
+            _par = (h_res,)
+        return {time.time():unicode(apply(_fun, _par))}
+    def history(self, item, interval, t_shift=None, fun=None):
+        import time
+        from ZLM_Interval import calcInterval
+        iteminfo = self[item]
+        if not iteminfo:
+            return []
         itemid = iteminfo["itemid"]
         _interval = calcInterval(interval, t_shift)
-        history = self.z.history.get(itemits=itemid, time_from=_interval["l_stamp"], time_till=_interval["h_stamp"], limit=str(_interval["limit"]), history=iteminfo["value_type"], output="extend", sortfield="clock")
+        _from = _interval["l_stamp"]
+        _to = _interval["h_stamp"]
+        _limit=str(_interval["limit"])
+        _history=iteminfo["value_type"]
+        history = self.z.history.get(itemits=itemid, time_from=_from, time_till=_to, limit=_limit, history=_history, output="extend", sortfield="clock")
         ret = {}
         for i in history:
             ret[float(i["clock"])] = i["value"]
-        return ret
+        if not fun:
+            return ret
+        return self._execFunction(ret, fun)
+
 
 
 if __name__ == "__main__":
     c = Federation_Server("zabbix-251")
-    print c.history("zabbix-251:Context switches", "3000")
+    print c.history("zabbix-251:Context switches", "#1000", "12h", "MAX")
+    print c.history("zabbix-251:Context switches", "#1000", "12h", "AVG")
+    print c.history("zabbix-251:Context switches", "#1000", "12h", "SUM")
+    print c.history("zabbix-251:Context switches", "#1000", "12h", "MIN")
