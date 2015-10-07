@@ -43,7 +43,7 @@ def calcInterval(interval, t_shift=None, interval_range=0):
     h_stamp = time.time()-shift_secs
     l_stamp = time.time()-interval_range-shift_secs
     q = interval[-1].lower()
-    if q in ["m", "h, "d", "w] and interval[0] != "#":
+    if q in ["m", "h", "d", "w"] and interval[0] != "#":
         interval = calcSeconds(interval)
     delta, limit = calcNSamples(interval)
     if delta != 0:
