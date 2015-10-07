@@ -348,6 +348,7 @@ def resolveModule(name, method=None, suffix="pymodules"):
 ##
 
 cdef public object ZBX_startup (char * cfg_path):
+    import traceback
     log_warning("ZLM-python(Startup) Initializning")
     manager = ZBX_mp_Manager()
     manager.start()
@@ -361,7 +362,16 @@ cdef public object ZBX_startup (char * cfg_path):
     ## Pre-load modules from pymodules
     ##
     for m in listOfModules("%s/pymodules"%cfg_path):
-        resolveModule(m)
+        ret_code, mod, tb = resolveModule(m)
+        if ret_code == 1:
+            try:
+                startup_fun = getattr(mod, "startup")
+            except:
+                continue
+            try:
+                apply(startup_fun, (ret["ns"],))
+            except:
+                log_warning("ZLM-python(Startup) Startup function was detected for module %s but execution had failed"%m)
     ##
     ## Start zlm-cython daemon threads
     ##

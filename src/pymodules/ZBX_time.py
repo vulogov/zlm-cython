@@ -12,3 +12,5 @@ def main(*args):
 		stamp = time.time()
 		ns.stamp = stamp
 	return stamp
+def startup(ns):
+	zlm.log_warning("ZLM_time(startup) Executing")
