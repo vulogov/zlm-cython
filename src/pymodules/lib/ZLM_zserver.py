@@ -5,7 +5,7 @@
 ##
 
 class Federation_Config_File:
-    def __init__(self, name, cfg_path="/usr/local/etc", default_config_filename="zabbix_federation.cfg"):
+    def __init__(self, name=None, cfg_path="/usr/local/etc", default_config_filename="zabbix_federation.cfg"):
         self.name = name
         self.cfg_path = cfg_path
         self.default_config_filename=default_config_filename
@@ -17,7 +17,13 @@ class Federation_Config_File:
         self.isReady = False
         if len(self.cfg.read(self.path)) != 0:
             self.isReady = True
-            self._cfg = self.cfg.items(self.name)
+            if self.name:
+                self._cfg = self.cfg.items(self.name)
+            else:
+                self._cfg = None
+                self.isReady = False
+    def servers(self):
+       return self.cfg.sections()
     def __getitem__(self, _key):
         for key, val in self._cfg:
             key = key.lower()
@@ -98,10 +104,13 @@ class Federation_Server(DataAggregators):
             _fun = fun
             _par = (h_res,)
         return {time.time():unicode(apply(_fun, _par))}
-    def history(self, item, interval, t_shift=None, fun=None):
+    def history(self, item, interval, t_shift=None, fun=None, _iteminfo=None):
         import time
         from ZLM_Interval import calcInterval
-        iteminfo = self[item]
+        if _iteminfo:
+           iteminfo = _iteminfo
+        else:
+            iteminfo = self[item]
         if not iteminfo:
             return []
         itemid = iteminfo["itemid"]
@@ -121,8 +130,10 @@ class Federation_Server(DataAggregators):
 
 
 if __name__ == "__main__":
-    c = Federation_Server("zabbix-251")
-    print c.history("zabbix-251:Context switches", "#1000", "12h", "MAX")
-    print c.history("zabbix-251:Context switches", "#1000", "12h", "AVG")
-    print c.history("zabbix-251:Context switches", "#1000", "12h", "SUM")
-    print c.history("zabbix-251:Context switches", "#1000", "12h", "MIN")
+    #c = Federation_Server("zabbix-251")
+    #print c.history("zabbix-251:Context switches", "#1000", "12h", "MAX")
+    #print c.history("zabbix-251:Context switches", "#1000", "12h", "AVG")
+    #print c.history("zabbix-251:Context switches", "#1000", "12h", "SUM")
+    #print c.history("zabbix-251:Context switches", "#1000", "12h", "MIN")
+    c = Federation_Config_File()
+    print c.servers()
