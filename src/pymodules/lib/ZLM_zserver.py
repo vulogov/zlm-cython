@@ -103,12 +103,12 @@ class Federation_Server(DataAggregators):
         else:
             _fun = fun
             _par = (h_res,)
-        return {time.time():unicode(apply(_fun, _par))}
+        return {time.time():apply(_fun, _par)}
     def history(self, item, interval, t_shift=None, fun=None, _iteminfo=None):
         import time
         from ZLM_Interval import calcInterval
         if _iteminfo:
-           iteminfo = _iteminfo
+            iteminfo = _iteminfo
         else:
             iteminfo = self[item]
         if not iteminfo:
@@ -118,11 +118,20 @@ class Federation_Server(DataAggregators):
         _from = _interval["l_stamp"]
         _to = _interval["h_stamp"]
         _limit=str(_interval["limit"])
-        _history=iteminfo["value_type"]
+        _history=int(iteminfo["value_type"])
         history = self.z.history.get(itemits=itemid, time_from=_from, time_till=_to, limit=_limit, history=_history, output="extend", sortfield="clock")
         ret = {}
+        if _history == 0:
+            conv_fun = float
+        elif _history == 3:
+            conv_fun = int
+        else:
+            conf_fun = str
         for i in history:
-            ret[float(i["clock"])] = i["value"]
+            try:
+                ret[float(i["clock"])] = conv_fun(i["value"])
+            except:
+                continue
         if not fun:
             return ret
         return self._execFunction(ret, fun)
@@ -130,10 +139,10 @@ class Federation_Server(DataAggregators):
 
 
 if __name__ == "__main__":
-    #c = Federation_Server("zabbix-251")
-    #print c.history("zabbix-251:Context switches", "#1000", "12h", "MAX")
+    c = Federation_Server("zabbix-251")
+    print c.history("zabbix-251:Context switches", "#1000", "12h")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "AVG")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "SUM")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "MIN")
-    c = Federation_Config_File()
-    print c.servers()
+    #c = Federation_Config_File()
+    #print c.servers()

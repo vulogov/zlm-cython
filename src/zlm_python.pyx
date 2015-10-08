@@ -372,6 +372,7 @@ cdef public object ZBX_startup (char * cfg_path):
                 apply(startup_fun, (ret["ns"],))
             except:
                 log_warning("ZLM-python(Startup) Startup function was detected for module %s but execution had failed"%m)
+                print traceback.format_exc()
     ##
     ## Start zlm-cython daemon threads
     ##
