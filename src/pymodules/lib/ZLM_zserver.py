@@ -117,7 +117,11 @@ class Federation_Server(DataAggregators):
         _interval = calcInterval(interval, t_shift)
         _from = _interval["l_stamp"]
         _to = _interval["h_stamp"]
-        _limit=str(_interval["limit"])
+        #print time.ctime(_from)
+        #print time.ctime(_to)
+        _limit=int(_interval["limit"])
+        #print _limit
+        #print iteminfo
         _history=int(iteminfo["value_type"])
         history = self.z.history.get(itemits=itemid, time_from=_from, time_till=_to, limit=_limit, history=_history, output="extend", sortfield="clock")
         ret = {}
