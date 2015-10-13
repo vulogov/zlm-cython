@@ -55,8 +55,36 @@ class DataAggregators:
             c.append(float(i))
         return (sum(c)/len(c))
 
+class Federation_Discovery:
+    def __format_json__(self, data, prefix, filter=None):
+        import simplejson as json
+        import fnmatch
+        out = []
+        for r in data:
+            rec = {}
+            for k in r.keys():
+                rec["{#%s_%s}"%(prefix.upper(), k.upper())] = r[k]
+            if not filter or ( filter and fnmatch(r[filter[0]], filter[1]) ):
+                out.append(rec)
+        return json.dumps({"data":out})
+    def discoveryHostGroup(self):
+        if not self.z:
+            return self.__format_json__([],"")
+        ret = {}
+        hg = self.z.hostgroup.get(output="extend")
+        return self.__format_json__(hg, "HG")
+    def discoveryHostsInGroup(self, hg, hosts="*"):
+        if not self.z:
+            return self.__format_json__([],"")
+        _hg = self.z.hostgroup.get(filter={"name":hg})
+        if len(_hg) == 0:
+            return self.__format_json__([],"")
+        _hg_id = _hg[0]["groupid"]
+        _hosts = self.z.host.get(groupids=[_hg_id,], output="extend")
+        return self.__format_json__(_hosts, "HOST")
 
-class Federation_Server(DataAggregators):
+
+class Federation_Server(DataAggregators, Federation_Discovery):
     def __init__(self, name, **kw):
         if not kw.has_key("cfg_path"):
             kw["cfg_path"] = "/usr/local/etc"
@@ -65,6 +93,7 @@ class Federation_Server(DataAggregators):
         self.cfg = Federation_Config_File(name, kw["cfg_path"], kw["default_config_filename"])
         if not self.cfg.URL() or not self.cfg.USERNAME() or not self.cfg.PASSWORD():
             raise ValueError, "Federation Server %s isn't properly configured"%name
+        self.z = None
         self.login()
     def login(self):
         from pyzabbix import ZabbixAPI, ZabbixAPIException
@@ -144,7 +173,9 @@ class Federation_Server(DataAggregators):
 
 if __name__ == "__main__":
     c = Federation_Server("zabbix-251")
-    print c.history("zabbix-251:Context switches", "#1000", "12h")
+    #print c.history("zabbix-251:Context switches", "#1000", "12h")
+    #print c.discoveryHostGroup()
+    print c.discoveryHostsInGroup("Zabbix servers")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "AVG")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "SUM")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "MIN")
