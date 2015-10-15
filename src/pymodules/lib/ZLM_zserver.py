@@ -56,23 +56,27 @@ class DataAggregators:
         return (sum(c)/len(c))
 
 class Federation_Discovery:
-    def __format_json__(self, data, prefix, filter=None):
+    def __format_json__(self, data, prefix, fields, filter=None):
         import simplejson as json
         import fnmatch
         out = []
         for r in data:
             rec = {}
             for k in r.keys():
-                rec["{#%s_%s}"%(prefix.upper(), k.upper())] = r[k]
+                if k in fields:
+                    rec["{#%s_%s}"%(prefix.upper(), k.upper())] = r[k]
             if not filter or ( filter and fnmatch(r[filter[0]], filter[1]) ):
                 out.append(rec)
         return json.dumps({"data":out})
-    def discoveryHostGroup(self):
+    def discoveryHostGroup(self, filter=None):
         if not self.z:
             return self.__format_json__([],"")
         ret = {}
         hg = self.z.hostgroup.get(output="extend")
-        return self.__format_json__(hg, "HG")
+        f = None
+        if filter != None:
+            f = ("name", filter)
+        return self.__format_json__(hg, "HG", ["groupid", "name"], f)
     def discoveryHostsInGroup(self, hg, hosts="*"):
         if not self.z:
             return self.__format_json__([],"")
@@ -81,7 +85,7 @@ class Federation_Discovery:
             return self.__format_json__([],"")
         _hg_id = _hg[0]["groupid"]
         _hosts = self.z.host.get(groupids=[_hg_id,], output="extend")
-        return self.__format_json__(_hosts, "HOST")
+        return self.__format_json__(_hosts, "HOST", ["name", "host", "hostid"])
 
 
 class Federation_Server(DataAggregators, Federation_Discovery):
@@ -174,7 +178,7 @@ class Federation_Server(DataAggregators, Federation_Discovery):
 if __name__ == "__main__":
     c = Federation_Server("zabbix-251")
     #print c.history("zabbix-251:Context switches", "#1000", "12h")
-    #print c.discoveryHostGroup()
+    print c.discoveryHostGroup()
     print c.discoveryHostsInGroup("Zabbix servers")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "AVG")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "SUM")
