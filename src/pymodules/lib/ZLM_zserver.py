@@ -56,7 +56,7 @@ class DataAggregators:
         return (sum(c)/len(c))
 
 class Federation_Discovery:
-    def __format_json__(self, data, prefix, fields, filter=None):
+    def __format_json__(self, data, prefix, fields, filter=None, **kw):
         import simplejson as json
         import fnmatch
         out = []
@@ -65,7 +65,11 @@ class Federation_Discovery:
             for k in r.keys():
                 if k in fields:
                     rec["{#%s_%s}"%(prefix.upper(), k.upper())] = r[k]
-            if not filter or ( filter and fnmatch(r[filter[0]], filter[1]) ):
+            if filter == None or ( filter != None and fnmatch.fnmatch(r[filter[0]], filter[1]) ):
+                if kw.has_key("resolve_host") and kw["resolve_host"] == True:
+                    _h = self.z.host.get(hostids=[r["hostid"],], output="extend")
+                    if len(_h) != 0:
+                        rec["{#%s_HOST}"%prefix] = _h[0]["name"]
                 out.append(rec)
         return json.dumps({"data":out})
     def discoveryHostGroup(self, filter=None):
@@ -85,7 +89,17 @@ class Federation_Discovery:
             return self.__format_json__([],"")
         _hg_id = _hg[0]["groupid"]
         _hosts = self.z.host.get(groupids=[_hg_id,], output="extend")
-        return self.__format_json__(_hosts, "HOST", ["name", "host", "hostid"])
+        return self.__format_json__(_hosts, "HOST", ["name", "host", "hostid"], ("name",hosts))
+    def discoveryItems(self, hg, item_filter="*"):
+        if not self.z:
+            return self.__format_json__([],"")
+        _hg = self.z.hostgroup.get(filter={"name":hg})
+        if len(_hg) == 0:
+            return self.__format_json__([],"")
+        _hg_id = _hg[0]["groupid"]
+        _items = self.z.item.get(groupids=[_hg_id,], output="extend", selectHost="extend")
+        return self.__format_json__(_items, "ITEM", ["itemid","name","type","value_type"],("name", item_filter), resolve_host=True)
+
 
 
 class Federation_Server(DataAggregators, Federation_Discovery):
@@ -180,6 +194,7 @@ if __name__ == "__main__":
     #print c.history("zabbix-251:Context switches", "#1000", "12h")
     print c.discoveryHostGroup()
     print c.discoveryHostsInGroup("Zabbix servers")
+    print c.discoveryItems("Zabbix servers", "Context *")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "AVG")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "SUM")
     #print c.history("zabbix-251:Context switches", "#1000", "12h", "MIN")
