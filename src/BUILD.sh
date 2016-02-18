@@ -20,7 +20,7 @@ if [ -z "$PY_LIB" ]; then
     exit 1
 fi
 
-export ZBX_DIR=`find ../.. -type d -name zabbix-2.*|head -1`
+export ZBX_DIR=`find ../.. -type d -name zabbix-*|head -1`
 if [ -z "$ZBX_DIR" ]; then
     echo "No Zabbix source tree found in $HOME"
     exit 1

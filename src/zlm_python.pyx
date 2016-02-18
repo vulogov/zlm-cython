@@ -447,4 +447,3 @@ cdef public ZBX_finish(object ctx):
     log_warning("ZLM-python(Shutdown): Doing so.")
     ctx["m"].shutdown()
     log_warning("ZLM-python(Shutdown): CM manager is down.")
-    del ctx
