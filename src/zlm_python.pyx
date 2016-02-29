@@ -224,6 +224,7 @@ def startDaemon(ns, mod):
         desc = "Daemon %s"%daemon_class.__name__
     d_obj = daemon_class(None, None, None, (), {"ns":ns})
     log_warning("ZLM-python(Daemon): Start daemon %s"%desc)
+    d_obj.daemon = True
     d_obj.start()
     return True
 
